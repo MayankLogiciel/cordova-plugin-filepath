@@ -33,6 +33,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.ArrayList;
 import java.util.List;
 import java.io.File;
 
@@ -61,8 +62,33 @@ public class FilePath extends CordovaPlugin {
 
     public static final String READ = Manifest.permission.READ_EXTERNAL_STORAGE;
 
+    private boolean hasPermissions(String[] permissions) {
+        for (String permission: permissions) {
+            if (!PermissionHelper.hasPermission(this, permission)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private String[] getPermissions() {
+        ArrayList<String> permissions = new ArrayList<>();
+
+        if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            // Android API 33 and higher
+            permissions.add(Manifest.permission.READ_MEDIA_IMAGES);
+            permissions.add(Manifest.permission.READ_MEDIA_VIDEO);
+        } else {
+            // Android API 32 or lower
+            permissions.add(Manifest.permission.READ_EXTERNAL_STORAGE);
+        }
+
+        return permissions.toArray(new String[0]);
+    }
+
+
     protected void getReadPermission(int requestCode) {
-        PermissionHelper.requestPermission(this, requestCode, READ);
+        PermissionHelper.requestPermissions(this, requestCode, getPermissions());
     }
 
     public void initialize(CordovaInterface cordova, final CordovaWebView webView) {
@@ -82,8 +108,10 @@ public class FilePath extends CordovaPlugin {
         this.callback = callbackContext;
         this.uriStr = args.getString(0);
 
+        String[] storagePermissions = getPermissions();
+
         if (action.equals("resolveNativePath")) {
-            if (PermissionHelper.hasPermission(this, READ)) {
+            if (hasPermissions(storagePermissions)) {
                 resolveNativePath();
             }
             else {
